@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import * as controller from "./controllers/product.controller.js";
 import { AppError, NotFoundError } from "./utils/errors.js";
 
+// Every controller function has this shape
 type Handler = (
   req: IncomingMessage,
   res: ServerResponse,
@@ -11,29 +12,54 @@ type Handler = (
 
 interface Route {
   method: string;
-  pattern: RegExp;
-  paramNames: string[];
+  path: string;
   handler: Handler;
 }
 
-// Turns "/products/:id" into a regex and remembers the param names ["id"]
-function route(method: string, path: string, handler: Handler): Route {
-  const paramNames: string[] = [];
-  const regexSource = path.replace(/:([A-Za-z]+)/g, (_match, name: string) => {
-    paramNames.push(name);
-    return "([^/]+)";
-  });
-  return { method, pattern: new RegExp(`^${regexSource}$`), paramNames, handler };
-}
-
+// All the routes of our API in one place
 const routes: Route[] = [
-  route("GET", "/health", controller.health),
-  route("POST", "/products", controller.createProduct),
-  route("GET", "/products", controller.getProducts),
-  route("GET", "/products/:id", controller.getProductById),
-  route("PATCH", "/products/:id", controller.updateProduct),
-  route("DELETE", "/products/:id", controller.deleteProduct),
+  { method: "GET", path: "/health", handler: controller.health },
+  { method: "POST", path: "/products", handler: controller.createProduct },
+  { method: "GET", path: "/products", handler: controller.getProducts },
+  { method: "GET", path: "/products/:id", handler: controller.getProductById },
+  { method: "PATCH", path: "/products/:id", handler: controller.updateProduct },
+  { method: "DELETE", path: "/products/:id", handler: controller.deleteProduct },
 ];
+
+// Checks if the request path matches a route path.
+// Example: route "/products/:id" and request "/products/abc"
+// returns { id: "abc" }. If it does not match, it returns null.
+function matchPath(
+  routePath: string,
+  requestPath: string
+): Record<string, string> | null {
+  const routeParts = routePath.split("/");
+  const requestParts = requestPath.split("/");
+
+  // Different number of parts means it can never match
+  if (routeParts.length !== requestParts.length) {
+    return null;
+  }
+
+  const params: Record<string, string> = {};
+
+  for (let i = 0; i < routeParts.length; i++) {
+    const routePart = routeParts[i];
+    const requestPart = requestParts[i];
+
+    if (routePart.startsWith(":")) {
+      // This part is a variable like :id, so save its value
+      if (requestPart === "") return null;
+      const name = routePart.slice(1);
+      params[name] = decodeURIComponent(requestPart);
+    } else if (routePart !== requestPart) {
+      // This part is fixed text and it does not match
+      return null;
+    }
+  }
+
+  return params;
+}
 
 export async function handleRoute(
   req: IncomingMessage,
@@ -45,26 +71,29 @@ export async function handleRoute(
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
   const method = req.method ?? "GET";
 
-  let pathMatched = false;
+  // Becomes true if the path exists but with a different method
+  let pathFound = false;
 
-  for (const r of routes) {
-    const match = r.pattern.exec(path);
-    if (!match) continue;
+  for (const route of routes) {
+    const params = matchPath(route.path, path);
 
-    pathMatched = true;
-    if (r.method !== method) continue;
+    // Path does not match this route, check the next one
+    if (params === null) continue;
 
-    const params: Record<string, string> = {};
-    r.paramNames.forEach((name, i) => {
-      params[name] = decodeURIComponent(match[i + 1]);
-    });
+    pathFound = true;
 
-    await r.handler(req, res, params, query);
+    // Path matches, but the method is different (for example PUT)
+    if (route.method !== method) continue;
+
+    await route.handler(req, res, params, query);
     return;
   }
 
-  if (pathMatched) {
+  // The path exists, but this method is not allowed on it
+  if (pathFound) {
     throw new AppError(405, `Method ${method} not allowed on ${path}`);
   }
+
+  // No route matched at all
   throw new NotFoundError(`Route ${method} ${path} not found`);
 }
