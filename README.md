@@ -20,7 +20,7 @@ A REST API for managing product inventory, built with **Node.js (built-in `http`
 ## Setup
 
 ```bash
-git clone https://github.com/<your-username>/product-inventory-server.git
+git clone https://github.com/vaishnavi0077/product-inventory-server.git
 cd product-inventory-server
 npm install
 ```

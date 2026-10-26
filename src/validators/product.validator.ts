@@ -55,7 +55,7 @@ function clean(field: Field, value: unknown): string | number {
     : (value as number);
 }
 
-// ---------- POST /products ----------
+// POST /products
 export function validateCreateProduct(body: unknown): CreateProductInput {
   if (!isPlainObject(body)) {
     throw new ValidationError("Request body must be a JSON object");
@@ -84,7 +84,7 @@ export function validateCreateProduct(body: unknown): CreateProductInput {
   };
 }
 
-// ---------- PATCH /products/:id ----------
+// PATCH /products/:id 
 export function validateUpdateProduct(body: unknown): UpdateProductInput {
   if (!isPlainObject(body)) {
     throw new ValidationError("Request body must be a JSON object");
@@ -111,7 +111,7 @@ export function validateUpdateProduct(body: unknown): UpdateProductInput {
   return result as UpdateProductInput;
 }
 
-// ---------- GET /products?category=...&inStock=... ----------
+//  GET /products?category=...&inStock=... 
 export function validateFilters(query: URLSearchParams): ProductFilters {
   const filters: ProductFilters = {};
   const errors: string[] = [];

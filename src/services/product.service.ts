@@ -26,9 +26,8 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
 
 export async function getProducts(filters: ProductFilters = {}): Promise<Product[]> {
   const products = await repository.findAll();
-
   return products.filter((product) => {
-    // Category match is case-insensitive: "Electronics" matches "electronics"
+    
     if (
       filters.category !== undefined &&
       product.category.toLowerCase() !== filters.category.toLowerCase()
@@ -37,7 +36,7 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
     }
 
     // inStock=true  -> stockQuantity > 0
-    // inStock=false -> stockQuantity === 0 (out of stock)
+    // inStock=false -> stockQuantity === 0
     if (filters.inStock !== undefined) {
       const isInStock = product.stockQuantity > 0;
       if (isInStock !== filters.inStock) return false;
@@ -62,8 +61,8 @@ export async function updateProduct(
   const updated = await repository.update(id, (existing) => ({
     ...existing,
     ...changes,
-    id: existing.id,               // never changes
-    createdAt: existing.createdAt, // never changes
+    id: existing.id,              
+    createdAt: existing.createdAt,
     updatedAt: new Date().toISOString(),
   }));
 
